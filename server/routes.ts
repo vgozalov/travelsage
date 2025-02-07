@@ -46,7 +46,11 @@ export function registerRoutes(app: Express) {
   });
 
   app.get("/api/attractions/:id/reviews", async (req, res) => {
-    const reviews = await storage.getAttractionReviews(parseInt(req.params.id));
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "Invalid attraction ID" });
+    }
+    const reviews = await storage.getAttractionReviews(id);
     res.json(reviews);
   });
 
