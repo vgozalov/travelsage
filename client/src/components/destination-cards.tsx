@@ -3,11 +3,14 @@ import { useInView } from "react-intersection-observer";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Destination } from "@shared/schema";
 import { mockDestinations } from "@/lib/constants";
 
 type Props = {
   onSelect: (destination: string) => void;
 };
+
+const PAGE_SIZE = 8;
 
 export default function DestinationCards({ onSelect }: Props) {
   const { ref, inView } = useInView();
@@ -25,7 +28,13 @@ export default function DestinationCards({ onSelect }: Props) {
       return res.json();
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    initialData: { pages: [{ pages: mockDestinations }], pageParams: [1] }
+    initialData: {
+      pages: [{
+        pages: mockDestinations.slice(0, PAGE_SIZE),
+        nextCursor: 2
+      }],
+      pageParams: [1]
+    }
   });
 
   useEffect(() => {
@@ -36,9 +45,9 @@ export default function DestinationCards({ onSelect }: Props) {
 
   return (
     <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-      {destinations?.pages.flatMap(page => page.pages).map((destination) => (
+      {destinations?.pages.flatMap(page => page.pages).map((destination: Destination) => (
         <Card 
-          key={destination.name}
+          key={destination.id}
           className="cursor-pointer hover:shadow-lg transition-shadow"
           onClick={() => onSelect(destination.name)}
         >
