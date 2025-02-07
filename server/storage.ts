@@ -3,12 +3,22 @@ import { db } from "./db";
 import { mockDestinations, mockAttractions } from "../client/src/lib/constants";
 import { 
   destinations, activities, attractions, itineraries, itineraryAttractions,
-  reviews, type Itinerary, type InsertItinerary, type Review, type InsertReview
+  reviews, users, type Itinerary, type InsertItinerary, type Review, 
+  type InsertUser, type User
 } from "@shared/schema";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
 
+const PostgresSessionStore = connectPg(session);
 const PAGE_SIZE = 12;
 
 export interface IStorage {
+  // User operations
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+
+  // Itinerary operations
   createItinerary(itinerary: InsertItinerary): Promise<Itinerary>;
   searchDestinations(query: string): Promise<typeof mockDestinations>;
   getDestinationsByPage(page: number): Promise<{pages: typeof mockDestinations, nextCursor?: number}>;
@@ -16,24 +26,59 @@ export interface IStorage {
   getAttractionReviews(attractionId: number): Promise<Review[]>;
   createReview(review: InsertReview & { sentiment: string, sentimentScore: number }): Promise<Review>;
   updateAttractionReview(attractionId: number, summary: string): Promise<void>;
+
+  // Session store
+  sessionStore: session.Store;
 }
 
 export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({
+      conObject: {
+        connectionString: process.env.DATABASE_URL,
+      },
+      createTableIfMissing: true,
+    });
+  }
+
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
   async createItinerary(insertItinerary: InsertItinerary): Promise<Itinerary> {
     const [itinerary] = await db
       .insert(itineraries)
-      .values(insertItinerary)
+      .values({
+        ...insertItinerary,
+        startDate: new Date(insertItinerary.startDate).toISOString(),
+        endDate: new Date(insertItinerary.endDate).toISOString(),
+      })
       .returning();
     return itinerary;
   }
 
   async searchDestinations(query: string) {
     const results = await db
-      .select({
-        name: destinations.name,
-        imageUrl: destinations.imageUrl,
-        description: destinations.description,
-      })
+      .select()
       .from(destinations)
       .where(sql`LOWER(${destinations.name}) LIKE LOWER(${`%${query}%`})`)
       .orderBy(desc(destinations.name))
@@ -48,28 +93,22 @@ export class DatabaseStorage implements IStorage {
     const offset = (page - 1) * PAGE_SIZE;
 
     const results = await db
-      .select({
-        name: destinations.name,
-        imageUrl: destinations.imageUrl,
-        description: destinations.description,
-      })
+      .select()
       .from(destinations)
       .orderBy(asc(destinations.name))
       .limit(PAGE_SIZE)
       .offset(offset);
 
-    return results.length > 0 ? {
-      pages: results,
-      nextCursor: results.length === PAGE_SIZE ? page + 1 : undefined
-    } : {
-      pages: mockDestinations,
-      nextCursor: mockDestinations.length === PAGE_SIZE ? page + 1 : undefined
+    return {
+      pages: results.length > 0 ? results : mockDestinations,
+      nextCursor: (results.length === PAGE_SIZE || (!results.length && mockDestinations.length === PAGE_SIZE)) ? page + 1 : undefined
     };
   }
 
   async getAttractions(destinationName: string) {
     const results = await db
       .select({
+        id: attractions.id,
         name: attractions.name,
         destination: destinations.name,
         description: attractions.description,

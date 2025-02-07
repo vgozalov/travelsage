@@ -3,6 +3,14 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  email: text("email").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const destinations = pgTable("destinations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -35,6 +43,7 @@ export const attractions = pgTable("attractions", {
 
 export const itineraries = pgTable("itineraries", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
   destinationId: integer("destination_id").references(() => destinations.id).notNull(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
@@ -48,6 +57,7 @@ export const itineraryAttractions = pgTable("itinerary_attractions", {
   attractionId: integer("attraction_id").references(() => attractions.id).notNull(),
   dayNumber: integer("day_number").notNull(),
   visitTime: text("visit_time").notNull(),
+  travelTimeFromPrevious: integer("travel_time_from_previous"), 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -60,6 +70,10 @@ export const reviews = pgTable("reviews", {
   sentimentScore: integer("sentiment_score"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const usersRelations = relations(users, ({ many }) => ({
+  itineraries: many(itineraries),
+}));
 
 export const destinationsRelations = relations(destinations, ({ many }) => ({
   attractions: many(attractions),
@@ -75,6 +89,10 @@ export const attractionsRelations = relations(attractions, ({ one, many }) => ({
 }));
 
 export const itinerariesRelations = relations(itineraries, ({ one, many }) => ({
+  user: one(users, {
+    fields: [itineraries.userId],
+    references: [users.id],
+  }),
   destination: one(destinations, {
     fields: [itineraries.destinationId],
     references: [destinations.id],
@@ -89,6 +107,11 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   }),
 }));
 
+export const insertUserSchema = createInsertSchema(users, {
+  username: z.string().min(3).max(50),
+  password: z.string().min(6),
+  email: z.string().email(),
+});
 
 export const insertDestinationSchema = createInsertSchema(destinations, {
   name: z.string().min(1),
@@ -115,6 +138,7 @@ export const insertAttractionSchema = createInsertSchema(attractions, {
 });
 
 export const insertItinerarySchema = createInsertSchema(itineraries, {
+  userId: z.number().positive(),
   destinationId: z.number().positive(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
@@ -126,6 +150,7 @@ export const insertItineraryAttractionSchema = createInsertSchema(itineraryAttra
   attractionId: z.number().positive(),
   dayNumber: z.number().min(1),
   visitTime: z.string(),
+  travelTimeFromPrevious: z.number().min(0).optional(),
 });
 
 export const insertReviewSchema = createInsertSchema(reviews, {
@@ -133,6 +158,9 @@ export const insertReviewSchema = createInsertSchema(reviews, {
   rating: z.number().min(1).max(5),
   attractionId: z.number().positive(),
 });
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type Destination = typeof destinations.$inferSelect;
 export type InsertDestination = z.infer<typeof insertDestinationSchema>;

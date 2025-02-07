@@ -1,10 +1,14 @@
 import type { Express } from "express";
 import { createServer } from "http";
 import { storage } from "./storage";
-import { searchSchema, activitiesSchema, insertItinerarySchema, insertReviewSchema } from "@shared/schema";
+import { searchSchema, activitiesSchema, insertItinerarySchema, insertReviewSchema, type InsertReview } from "@shared/schema";
 import { generateReviewSummary, analyzeReviewSentiment } from "./utils/openai";
+import { setupAuth } from "./auth";
 
 export function registerRoutes(app: Express) {
+  // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
+  setupAuth(app);
+
   app.get("/api/destinations/search", async (req, res) => {
     const result = searchSchema.safeParse({
       query: req.query.query
@@ -63,8 +67,17 @@ export function registerRoutes(app: Express) {
     res.json(review);
   });
 
+  // Protected route - requires authentication
   app.post("/api/itineraries", async (req, res) => {
-    const result = insertItinerarySchema.safeParse(req.body);
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const result = insertItinerarySchema.safeParse({
+      ...req.body,
+      userId: req.user!.id // Add the authenticated user's ID
+    });
+
     if (!result.success) {
       return res.status(400).json({ error: "Invalid itinerary data" });
     }
