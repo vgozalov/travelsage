@@ -51,17 +51,27 @@ export const itineraryAttractions = pgTable("itinerary_attractions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Relations
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  attractionId: integer("attraction_id").references(() => attractions.id).notNull(),
+  content: text("content").notNull(),
+  rating: integer("rating").notNull(),
+  sentiment: text("sentiment"),
+  sentimentScore: integer("sentiment_score"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const destinationsRelations = relations(destinations, ({ many }) => ({
   attractions: many(attractions),
   itineraries: many(itineraries),
 }));
 
-export const attractionsRelations = relations(attractions, ({ one }) => ({
+export const attractionsRelations = relations(attractions, ({ one, many }) => ({
   destination: one(destinations, {
     fields: [attractions.destinationId],
     references: [destinations.id],
   }),
+  reviews: many(reviews),
 }));
 
 export const itinerariesRelations = relations(itineraries, ({ one, many }) => ({
@@ -72,7 +82,14 @@ export const itinerariesRelations = relations(itineraries, ({ one, many }) => ({
   attractions: many(itineraryAttractions),
 }));
 
-// Schemas for insert
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  attraction: one(attractions, {
+    fields: [reviews.attractionId],
+    references: [attractions.id],
+  }),
+}));
+
+
 export const insertDestinationSchema = createInsertSchema(destinations, {
   name: z.string().min(1),
   imageUrl: z.string().url(),
@@ -111,7 +128,12 @@ export const insertItineraryAttractionSchema = createInsertSchema(itineraryAttra
   visitTime: z.string(),
 });
 
-// Types
+export const insertReviewSchema = createInsertSchema(reviews, {
+  content: z.string().min(1),
+  rating: z.number().min(1).max(5),
+  attractionId: z.number().positive(),
+});
+
 export type Destination = typeof destinations.$inferSelect;
 export type InsertDestination = z.infer<typeof insertDestinationSchema>;
 
@@ -126,6 +148,9 @@ export type InsertItinerary = z.infer<typeof insertItinerarySchema>;
 
 export type ItineraryAttraction = typeof itineraryAttractions.$inferSelect;
 export type InsertItineraryAttraction = z.infer<typeof insertItineraryAttractionSchema>;
+
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = z.infer<typeof insertReviewSchema>;
 
 export const searchSchema = z.object({
   query: z.string().min(2),

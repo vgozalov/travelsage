@@ -3,7 +3,7 @@ import { db } from "./db";
 import { mockDestinations, mockAttractions } from "../client/src/lib/constants";
 import { 
   destinations, activities, attractions, itineraries, itineraryAttractions,
-  type Itinerary, type InsertItinerary
+  reviews, type Itinerary, type InsertItinerary, type Review, type InsertReview
 } from "@shared/schema";
 
 const PAGE_SIZE = 12;
@@ -13,6 +13,9 @@ export interface IStorage {
   searchDestinations(query: string): Promise<typeof mockDestinations>;
   getDestinationsByPage(page: number): Promise<{pages: typeof mockDestinations, nextCursor?: number}>;
   getAttractions(destination: string): Promise<typeof mockAttractions>;
+  getAttractionReviews(attractionId: number): Promise<Review[]>;
+  createReview(review: InsertReview & { sentiment: string, sentimentScore: number }): Promise<Review>;
+  updateAttractionReview(attractionId: number, summary: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -74,6 +77,8 @@ export class DatabaseStorage implements IStorage {
         visitDuration: attractions.visitDuration,
         bestTimeToVisit: attractions.bestTimeToVisit,
         imageUrl: attractions.imageUrl,
+        reviewSummary: attractions.reviewSummary,
+        totalReviews: attractions.totalReviews,
       })
       .from(attractions)
       .innerJoin(destinations, eq(attractions.destinationId, destinations.id))
@@ -84,6 +89,38 @@ export class DatabaseStorage implements IStorage {
     return results.length > 0 ? results : mockAttractions.filter(a => 
       a.destination.toLowerCase() === destinationName.toLowerCase()
     );
+  }
+
+  async getAttractionReviews(attractionId: number): Promise<Review[]> {
+    return db
+      .select()
+      .from(reviews)
+      .where(eq(reviews.attractionId, attractionId))
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  async createReview(review: InsertReview & { sentiment: string, sentimentScore: number }): Promise<Review> {
+    const [newReview] = await db
+      .insert(reviews)
+      .values(review)
+      .returning();
+
+    // Update total reviews count
+    await db
+      .update(attractions)
+      .set({ 
+        totalReviews: sql`${attractions.totalReviews} + 1`
+      })
+      .where(eq(attractions.id, review.attractionId));
+
+    return newReview;
+  }
+
+  async updateAttractionReview(attractionId: number, summary: string): Promise<void> {
+    await db
+      .update(attractions)
+      .set({ reviewSummary: summary })
+      .where(eq(attractions.id, attractionId));
   }
 }
 

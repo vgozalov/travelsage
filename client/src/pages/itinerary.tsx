@@ -2,6 +2,9 @@ import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { Star, Clock, Sun } from "lucide-react";
+import Reviews from "@/components/reviews";
 import type { Attraction } from "@shared/schema";
 
 export default function Itinerary() {
@@ -54,27 +57,47 @@ export default function Itinerary() {
 
         <div className="grid gap-6 md:grid-cols-2">
           {attractions.map((attraction) => (
-            <Card key={attraction.name} className="overflow-hidden">
+            <Card key={attraction.id} className="overflow-hidden">
               <CardHeader>
-                <CardTitle>{attraction.name}</CardTitle>
+                <CardTitle className="flex justify-between items-start">
+                  <span>{attraction.name}</span>
+                  <div className="flex items-center text-yellow-500">
+                    <Star className="w-5 h-5 fill-current" />
+                    <span className="ml-1">{attraction.rating}</span>
+                  </div>
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div 
                   className="w-full h-48 bg-cover bg-center rounded-md"
                   style={{ backgroundImage: `url(${attraction.imageUrl})` }}
                 />
-                <p className="text-muted-foreground mb-2">{attraction.description}</p>
-                <div className="flex gap-4 text-sm">
-                  <span className="flex items-center gap-1">
-                    <span className="text-yellow-500">⭐</span> {attraction.rating}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span>⏰</span> {attraction.visitDuration}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span>🕒</span> Best: {attraction.bestTimeToVisit}
-                  </span>
+
+                <p className="text-muted-foreground">{attraction.description}</p>
+
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    {attraction.visitDuration}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Sun className="w-4 h-4" />
+                    Best: {attraction.bestTimeToVisit}
+                  </div>
                 </div>
+
+                {attraction.reviewSummary && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="font-semibold mb-2">Review Summary</h3>
+                      <p className="text-sm text-muted-foreground">{attraction.reviewSummary}</p>
+                    </div>
+                  </>
+                )}
+
+                <Separator />
+                <Reviews attractionId={attraction.id} />
               </CardContent>
             </Card>
           ))}
