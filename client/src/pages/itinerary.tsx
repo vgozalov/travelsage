@@ -9,6 +9,10 @@ export default function Itinerary() {
 
   const { data: attractions, isLoading, error } = useQuery<Attraction[]>({
     queryKey: ["/api/attractions", destination],
+    queryFn: () => fetch(`/api/attractions/${encodeURIComponent(destination!)}`).then(res => {
+      if (!res.ok) throw new Error('Failed to load attractions');
+      return res.json();
+    }),
     enabled: !!destination
   });
 
@@ -56,7 +60,7 @@ export default function Itinerary() {
               </CardHeader>
               <CardContent>
                 <div 
-                  className="w-full h-48 mb-4 bg-cover bg-center rounded-md"
+                  className="w-full h-48 bg-cover bg-center rounded-md"
                   style={{ backgroundImage: `url(${attraction.imageUrl})` }}
                 />
                 <p className="text-muted-foreground mb-2">{attraction.description}</p>

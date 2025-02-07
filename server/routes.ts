@@ -5,7 +5,10 @@ import { searchSchema, activitiesSchema, insertItinerarySchema } from "@shared/s
 
 export function registerRoutes(app: Express) {
   app.get("/api/destinations/search", async (req, res) => {
-    const result = searchSchema.safeParse(req.query);
+    const result = searchSchema.safeParse({
+      query: req.query.query
+    });
+
     if (!result.success) {
       return res.status(400).json({ error: "Invalid query" });
     }
