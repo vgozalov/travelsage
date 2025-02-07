@@ -33,8 +33,16 @@ export function registerRoutes(app: Express) {
   });
 
   app.get("/api/attractions/:destination", async (req, res) => {
-    const attractions = await storage.getAttractions(req.params.destination);
-    res.json(attractions);
+    try {
+      if (!req.params.destination) {
+        return res.status(400).json({ error: "Destination is required" });
+      }
+      const attractions = await storage.getAttractions(req.params.destination);
+      res.json(attractions);
+    } catch (error) {
+      console.error('Error fetching attractions:', error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   });
 
   app.get("/api/attractions/:id/reviews", async (req, res) => {
