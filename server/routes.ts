@@ -17,6 +17,12 @@ export function registerRoutes(app: Express) {
     res.json(destinations);
   });
 
+  app.get("/api/destinations", async (req, res) => {
+    const page = parseInt(req.query.page as string) || 1;
+    const destinations = await storage.getDestinationsByPage(page);
+    res.json(destinations);
+  });
+
   app.get("/api/attractions/:destination", async (req, res) => {
     const attractions = await storage.getAttractions(req.params.destination);
     res.json(attractions);

@@ -1,4 +1,8 @@
+import { useCallback, useState, useEffect } from "react";
+import { useInView } from "react-intersection-observer";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { mockDestinations } from "@/lib/constants";
 
 type Props = {
@@ -6,9 +10,33 @@ type Props = {
 };
 
 export default function DestinationCards({ onSelect }: Props) {
+  const { ref, inView } = useInView();
+
+  const { 
+    data: destinations,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ["/api/destinations"],
+    queryFn: async ({ pageParam = 1 }) => {
+      const res = await fetch(`/api/destinations?page=${pageParam}`);
+      if (!res.ok) throw new Error('Failed to fetch destinations');
+      return res.json();
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    initialData: { pages: [{ pages: mockDestinations }], pageParams: [1] }
+  });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   return (
     <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-      {mockDestinations.map((destination) => (
+      {destinations?.pages.flatMap(page => page.pages).map((destination) => (
         <Card 
           key={destination.name}
           className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -26,6 +54,17 @@ export default function DestinationCards({ onSelect }: Props) {
           </CardContent>
         </Card>
       ))}
+
+      {/* Loading indicator */}
+      {(hasNextPage || isFetchingNextPage) && (
+        <div ref={ref} className="col-span-full">
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-72" />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

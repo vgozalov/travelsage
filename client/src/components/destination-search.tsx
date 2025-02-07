@@ -18,47 +18,59 @@ export default function DestinationSearch({ onSelect }: Props) {
   });
 
   const handleSelect = useCallback((destination: string) => {
-    setSearch(destination); // Update input when selection is made
+    setSearch(destination); 
     onSelect(destination);
     setOpen(false);
   }, [onSelect]);
 
+  const handleSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    if (search.trim()) {
+      onSelect(search.trim());
+      setOpen(false);
+    }
+  }, [search, onSelect]);
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div className="relative w-full">
-          <Input
-            placeholder="Where do you want to go?"
-            className="w-full text-lg py-6"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              if (!open) setOpen(true);
-            }}
-          />
-        </div>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandInput 
-            placeholder="Search destinations..."
-            value={search}
-            onValueChange={setSearch}
-          />
-          <CommandEmpty>No destinations found.</CommandEmpty>
-          <CommandGroup>
-            {destinations?.map((destination: any) => (
-              <CommandItem
-                key={destination.name}
-                onSelect={() => handleSelect(destination.name)}
-                className="cursor-pointer"
-              >
-                {destination.name}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <form onSubmit={handleSubmit} className="w-full">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div className="relative w-full">
+            <Input
+              placeholder="Where do you want to go?"
+              className="w-full text-lg py-6"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                if (!open && e.target.value.length >= 2) setOpen(true);
+              }}
+            />
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command>
+            <CommandInput 
+              placeholder="Search destinations..."
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandEmpty>
+              Press enter to search for "{search}"
+            </CommandEmpty>
+            <CommandGroup heading="Suggestions">
+              {destinations?.map((destination: any) => (
+                <CommandItem
+                  key={destination.name}
+                  onSelect={() => handleSelect(destination.name)}
+                  className="cursor-pointer"
+                >
+                  {destination.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </form>
   );
 }
