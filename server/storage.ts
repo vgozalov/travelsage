@@ -106,28 +106,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAttractions(destinationName: string) {
-    const results = await db
-      .select({
-        id: attractions.id,
-        name: attractions.name,
-        destination: destinations.name,
-        description: attractions.description,
-        rating: attractions.rating,
-        visitDuration: attractions.visitDuration,
-        bestTimeToVisit: attractions.bestTimeToVisit,
-        imageUrl: attractions.imageUrl,
-        reviewSummary: attractions.reviewSummary,
-        totalReviews: attractions.totalReviews,
-      })
-      .from(attractions)
-      .innerJoin(destinations, eq(attractions.destinationId, destinations.id))
-      .where(sql`LOWER(${destinations.name}) = LOWER(${destinationName})`)
-      .orderBy(desc(attractions.rating))
-      .limit(10);
+    try {
+      const results = await db
+        .select({
+          id: attractions.id,
+          name: attractions.name,
+          destination: destinations.name,
+          description: attractions.description,
+          rating: attractions.rating,
+          visitDuration: attractions.visitDuration,
+          bestTimeToVisit: attractions.bestTimeToVisit,
+          imageUrl: attractions.imageUrl,
+          reviewSummary: attractions.reviewSummary,
+          totalReviews: attractions.totalReviews,
+        })
+        .from(attractions)
+        .innerJoin(destinations, eq(attractions.destinationId, destinations.id))
+        .where(sql`LOWER(${destinations.name}) = LOWER(${destinationName})`)
+        .orderBy(desc(attractions.rating))
+        .limit(10);
 
-    return results.length > 0 ? results : mockAttractions.filter(a => 
-      a.destination.toLowerCase() === destinationName.toLowerCase()
-    );
+      return results.length > 0 ? results : mockAttractions.filter(a => 
+        a.destination.toLowerCase() === destinationName.toLowerCase()
+      );
+    } catch (error) {
+      console.error('Error fetching attractions:', error);
+      return mockAttractions.filter(a => 
+        a.destination.toLowerCase() === destinationName.toLowerCase()
+      );
+    }
   }
 
   async getAttractionReviews(attractionId: number): Promise<Review[]> {
