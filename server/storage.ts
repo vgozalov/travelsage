@@ -1,5 +1,10 @@
-import { Itinerary, InsertItinerary } from "@shared/schema";
+import { eq, sql, desc, asc } from "drizzle-orm";
+import { db } from "./db";
 import { mockDestinations, mockAttractions } from "../client/src/lib/constants";
+import { 
+  destinations, activities, attractions, itineraries, itineraryAttractions,
+  type Itinerary, type InsertItinerary
+} from "@shared/schema";
 
 export interface IStorage {
   createItinerary(itinerary: InsertItinerary): Promise<Itinerary>;
@@ -7,33 +12,53 @@ export interface IStorage {
   getAttractions(destination: string): Promise<typeof mockAttractions>;
 }
 
-export class MemStorage implements IStorage {
-  private itineraries: Map<number, Itinerary>;
-  private currentId: number;
-
-  constructor() {
-    this.itineraries = new Map();
-    this.currentId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async createItinerary(insertItinerary: InsertItinerary): Promise<Itinerary> {
-    const id = this.currentId++;
-    const itinerary = { ...insertItinerary, id };
-    this.itineraries.set(id, itinerary);
+    const [itinerary] = await db
+      .insert(itineraries)
+      .values(insertItinerary)
+      .returning();
     return itinerary;
   }
 
   async searchDestinations(query: string) {
-    return mockDestinations.filter(d => 
+    const results = await db
+      .select({
+        name: destinations.name,
+        imageUrl: destinations.imageUrl,
+        description: destinations.description,
+      })
+      .from(destinations)
+      .where(sql`${destinations.name} ILIKE ${`%${query}%`}`)
+      .orderBy(desc(destinations.name))
+      .limit(10);
+
+    return results.length > 0 ? results : mockDestinations.filter(d => 
       d.name.toLowerCase().includes(query.toLowerCase())
     );
   }
 
-  async getAttractions(destination: string) {
-    return mockAttractions.filter(a => 
-      a.destination.toLowerCase() === destination.toLowerCase()
+  async getAttractions(destinationName: string) {
+    const results = await db
+      .select({
+        name: attractions.name,
+        destination: destinations.name,
+        description: attractions.description,
+        rating: attractions.rating,
+        visitDuration: attractions.visitDuration,
+        bestTimeToVisit: attractions.bestTimeToVisit,
+        imageUrl: attractions.imageUrl,
+      })
+      .from(attractions)
+      .innerJoin(destinations, eq(attractions.destinationId, destinations.id))
+      .where(sql`${destinations.name} ILIKE ${destinationName}`)
+      .orderBy(desc(attractions.rating))
+      .limit(10);
+
+    return results.length > 0 ? results : mockAttractions.filter(a => 
+      a.destination.toLowerCase() === destinationName.toLowerCase()
     );
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
