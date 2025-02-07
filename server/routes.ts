@@ -23,18 +23,13 @@ export function registerRoutes(app: Express) {
   });
 
   app.get("/api/destinations", async (req, res) => {
-    try {
-      const pageStr = req.query.page as string;
-      const page = pageStr ? parseInt(pageStr) : 1;
-      if (isNaN(page) || page < 1) {
-        return res.status(400).json({ error: "Invalid page number" });
-      }
-      const destinations = await storage.getDestinationsByPage(page);
-      res.json(destinations);
-    } catch (error) {
-      console.error('Error fetching destinations:', error);
-      res.status(500).json({ error: "Internal server error" });
+    const pageStr = req.query.page as string;
+    const page = pageStr ? parseInt(pageStr) : 1;
+    if (isNaN(page) || page < 1) {
+      return res.status(400).json({ error: "Invalid page number" });
     }
+    const destinations = await storage.getDestinationsByPage(page);
+    res.json(destinations);
   });
 
   app.get("/api/attractions/:destination", async (req, res) => {
